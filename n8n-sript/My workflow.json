@@ -1,0 +1,734 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Idea",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Enter Idea",
+              "placeholder": "Describe your idea here.",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -4976,
+        96
+      ],
+      "id": "10205e76-9d0c-4b57-84b7-b1053b523bea",
+      "name": "On form submission",
+      "webhookId": "bc2f5891-d6fb-4426-a188-202fddb41d41"
+    },
+    {
+      "parameters": {
+        "jsCode": "let content = items[0].json.message.content;\n\nif (typeof content === 'string') {\n  // 1. Remove Markdown code fences\n  content = content.replace(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i, '$1');\n\n  // 2. Remove leading/trailing whitespace and \\n, \\r\n  content = content.trim().replace(/^\\\\n|\\\\n$/g, '');\n\n  try {\n    // 3. Parse the JSON\n    content = JSON.parse(content);\n  } catch (err) {\n    return [{\n      json: {\n        raw: items[0].json.message.content,\n        cleaned: content,\n        error: 'Failed to parse JSON: ' + err.message\n      }\n    }];\n  }\n}\n\n// 4. Return the parsed object so fields are accessible in Set node\nreturn [{ json: content }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4320,
+        96
+      ],
+      "id": "db5b7edd-d242-4fac-a236-2e7df8ab9a10",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cef91532-1811-42b3-bfc2-457c9c6ca16f",
+              "name": "title",
+              "value": "={{$json[\"title\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "dfb387f5-aa14-43d8-b60c-d4ed03b1b2ce",
+              "name": "script",
+              "value": "={{$json[\"script\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "36fc83ed-98a8-4be0-a2cc-dbab0797cf11",
+              "name": "duration",
+              "value": "={{$json[\"duration\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "a2ff7d82-7331-4528-9fe0-4872892aded1",
+              "name": "platform",
+              "value": "={{$json[\"platform\"]}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4112,
+        96
+      ],
+      "id": "868641c4-65c4-49d4-a2f4-b13296421413",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/yTuEOtauhAfSGCJBEcrm",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $env.ELEVENLABS_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{$json[\"script\"]}}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_monolingual_v1"
+            },
+            {
+              "name": "stability",
+              "value": "0.5"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data_2"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3712,
+        96
+      ],
+      "id": "f413443b-a2a5-4f65-8d80-7c97db55b3e6",
+      "name": "Eleven Labs"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "My Test Video Upload",
+        "regionCode": "PK",
+        "categoryId": "=22",
+        "options": {
+          "description": "uploaded via n8n",
+          "privacyStatus": "private"
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        96
+      ],
+      "id": "9d921cd1-3e3d-4034-88c7-60b7ecb9b096",
+      "name": "Upload a video",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "4qtW0abfrBRyLlvW",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json['Enter Idea'] }}"
+            },
+            {
+              "content": "=You are an assistant that extracts and organizes content for video automation workflows.\n\nGiven a user prompt, output the following in clean JSON:\n- \"title\": A catchy YouTube title\n- \"script\": A short video script (1–2 paragraphs)\n- \"platform\": The platform where the video will be uploaded (e.g., YouTube, Instagram, TikTok)\n- \"duration\": Video duration in seconds or minutes, based on what user said (number only)\n\nIf any field is missing in the user prompt, mark it as \"unknown\".\nPlease Give good title, i have to generate images through these titles as a prompt so title should clearly reflect the purpouse to generate image and it should not contain any harmful content which is not accepted by models\n",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -4688,
+        96
+      ],
+      "id": "1b3aca90-481f-4e4e-b533-b1bfb6c3943d",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "V7jVuTsUG9Yth735",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 40
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -736,
+        80
+      ],
+      "id": "3e9e8b18-9da7-4acb-9fdb-44fd877fc017",
+      "name": "Wait",
+      "webhookId": "942e6aec-711a-4f07-845a-ef84d836d473"
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2880,
+        64
+      ],
+      "id": "a5f20110-0353-448c-928c-577ef5f5d20e",
+      "name": "Wait1",
+      "webhookId": "5753ba24-c6e2-433e-a46f-e92c73b7f33e"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dev.runwayml.com/v1/image_to_video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "promptImage",
+              "value": "={{ $json.image_url }}\n"
+            },
+            {
+              "name": "seed",
+              "value": "4294967295"
+            },
+            {
+              "name": "model",
+              "value": "gen4_turbo"
+            },
+            {
+              "name": "duration",
+              "value": "5"
+            },
+            {
+              "name": "ratio",
+              "value": "1280:720"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1040,
+        64
+      ],
+      "id": "e22a43db-71ab-45fd-9a99-83cb5a542cc6",
+      "name": "Runway Start",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eq6uXKuOyBOlqOuw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.dev.runwayml.com/v1/tasks/{{ $json.id }}\n\n",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        96
+      ],
+      "id": "a36fcf3e-b714-4697-9d14-af8b35e1cb0d",
+      "name": "Check Status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eq6uXKuOyBOlqOuw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $node[\"Check Status\"].json[\"output\"][0] }}\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        96
+      ],
+      "id": "2eadc0b6-71dc-4c4e-9d4a-2ccd09690ac2",
+      "name": "Get Video"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  item.binary.audio = item.binary.data_2;\n  delete item.binary.data_2;\n  return item;\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3520,
+        640
+      ],
+      "id": "7cb61abe-62ef-4189-9238-80e6ffc69f41",
+      "name": "Audio Rename"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  // Rename `data` (or data_2) to video\n  item.binary.video = item.binary.data || item.binary.data_2;\n  delete item.binary.data;\n  delete item.binary.data_2;\n  return item;\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8bb095a6-a641-4fce-a862-87445162d32f",
+      "name": "Video Rename"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        304,
+        224
+      ],
+      "id": "5f189d01-4cd1-4d51-9d2e-97f5586b3d97",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dev.runwayml.com/v1/text_to_image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"promptText\": \"Large Language Models Picture\",\n  \"ratio\": \"1920:1080\",\n  \"seed\": 4294967295,\n  \"model\": \"gen4_image\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4080,
+        576
+      ],
+      "id": "4e883852-108f-4a32-9631-5c0545fbe360",
+      "name": "Image Generation",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eq6uXKuOyBOlqOuw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-merging-production.up.railway.app/merge",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "audio",
+              "inputDataFieldName": "audio"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "video"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        544,
+        96
+      ],
+      "id": "55d8de34-1f13-4acd-ac23-8d35b6101891",
+      "name": "Merging",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://api.dev.runwayml.com/v1/tasks/{{ $json.id }}\n\n",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1952,
+        64
+      ],
+      "id": "7b27be08-1f58-413c-afc7-3b3193e5aaab",
+      "name": "Getting image URL",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eq6uXKuOyBOlqOuw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1f0d08d-74d5-4bf8-afae-cc32b0c10f02",
+              "name": "image_url",
+              "value": "={{ $json.output[0] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1728,
+        80
+      ],
+      "id": "8f70989d-e8b9-4ac0-a2d1-fd53a689d622",
+      "name": "Extract Image URL"
+    },
+    {
+      "parameters": {
+        "resource": "playlist",
+        "operation": "create",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.spotify",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        112
+      ],
+      "id": "da42889e-76eb-4473-9c70-3648d2444d23",
+      "name": "Create a playlist"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Eleven Labs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Image Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eleven Labs": {
+      "main": [
+        [
+          {
+            "node": "Audio Rename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Getting image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Runway Start": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Get Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Video": {
+      "main": [
+        [
+          {
+            "node": "Video Rename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Rename": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Merging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audio Rename": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Image Generation": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merging": {
+      "main": [
+        [
+          {
+            "node": "Upload a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Getting image URL": {
+      "main": [
+        [
+          {
+            "node": "Extract Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image URL": {
+      "main": [
+        [
+          {
+            "node": "Runway Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9abbeafc-64da-440d-84da-84513534a057",
+  "meta": {
+    "instanceId": "8382218bb04dc95ec28260fba0bdb15dde3f2b61f92d352b6443784fe5287aac"
+  },
+  "id": "qsguJauhGCK9AIaA",
+  "tags": []
+}

@@ -1,0 +1,18 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest   # or pin to a recent version, e.g. n8nio/n8n:1.85.1
+    container_name: n8n-ai-video-workflow
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    env_file:
+      - .env
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
+
+
